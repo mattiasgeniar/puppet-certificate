@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# Issue warning e-mails if SSL certificates expire, using
+# certwatch(1).
+#
+
+# Sanity checks
+test -f <%= @certificate_location %> || exit 0
+test -x /usr/bin/certwatch || exit 0
+test -x /usr/sbin/sendmail || exit 0
+test -x /bin/sort || exit 0
+test -x /usr/bin/openssl || exit 0
+
+# Check whether a warning message is needed
+/usr/bin/certwatch -q --period <%= @alert_timeframe %> <%= @certificate_location %>
+RETVAL=$?
+
+if [ $RETVAL -eq 0 ]; then
+  # The certificate is about to expire in less than <%= @alert_timeframe %> days, send an alert
+  echo "From: certificate@<%= @fqdn %>
+To: <%= @alert_email %>
+Subject: <%= @fqdn %>: certificate <%= @name %> will expire in less than <%= @alert_timeframe %> days
+MIME-Version: 1.0
+
+Host FQDN: <%= @fqdn %>
+IP: <%= @ipaddress %>
+Certificate file: <%= @certificate_location %>
+Puppet location: <%= @certificatefile %>
+
+The certificate on the host above is set to expire in less than <%= @alert_timeframe %> days.
+
+Here is the full certificate info:
+`/usr/bin/openssl x509 -in <%= @certificate_location %> -text -noout`
+
+" | /usr/sbin/sendmail -t
+fi
+
